@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SmartSphere - Elderly Assistant</title>
+    <style>
+        /* =========================================
+           Global Styles & CSS Variables
+           ========================================= */
+        :root {
+            --bg-color: #050505; 
+            --phone-bg: #000000; 
+            --card-bg: #1c1c1e;  
+            --active-bg: #ffffff;
+            --text-color: #ffffff;
+            --text-muted: #a1a1aa; 
+            --card-border: rgba(255,255,255,0.08); 
+            --card-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            --nav-bg: rgba(18, 18, 20, 0.85);
+            
+            --accent-yellow: #fde047;
+            --accent-blue: #38bdf8;
+            --accent-red: #ef4444;
+            --accent-cyan: #22d3ee;
+            --voice-btn: #10b981;
+            
+            --banner-bg-normal: rgba(56, 189, 248, 0.15);
+            --banner-border-normal: rgba(56, 189, 248, 0.4);
+            --banner-bg-away: rgba(161, 161, 170, 0.15);
+            --banner-border-away: rgba(161, 161, 170, 0.4);
+            
+            --room-bg-mini: radial-gradient(circle at center, #27272a 0%, #09090b 80%);
+            --room-bg-full: radial-gradient(circle at center, #18181b 0%, #000000 100%);
+            --label-color: rgba(255,255,255,0.4);
+            --label-shadow: 0 4px 10px rgba(0,0,0,1);
+            --hint-color: #ffffff; 
+        }
+
+        .light-theme {
+            --phone-bg: #e4e4e7; 
+            --card-bg: #ffffff;  
+            --active-bg: #e0f2fe; 
+            --text-color: #09090b; 
+            --text-muted: #71717a; 
+            --card-border: rgba(0,0,0,0.05); 
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.08); 
+            --nav-bg: rgba(244, 244, 245, 0.85); 
+            
+            --banner-bg-normal: #e0f2fe;
+            --banner-border-normal: #7dd3fc;
+            --banner-bg-away: #f4f4f5;
+            --banner-border-away: #a1a1aa;
+            
+            --room-bg-mini: radial-gradient(circle at center, #f4f4f5 0%, #d4d4d8 80%);
+            --room-bg-full: radial-gradient(circle at center, #ffffff 0%, #e4e4e7 100%);
+            --label-color: rgba(0,0,0,0.6);
+            --label-shadow: 0 2px 5px rgba(255,255,255,1);
+            --hint-color: #000000; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background: radial-gradient(circle at center, #1f1f22 0%, var(--bg-color) 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
+            overflow: hidden;
+        }
+
+        /* =========================================
+           Responsive Phone Shell Layout
+           ========================================= */
+        .phone-frame {
+            width: 390px; 
+            height: 844px;
+            background-color: var(--phone-bg);
+            border-radius: 40px;
+            position: relative;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.8), 0 0 0 2px #3f3f46, 0 30px 60px rgba(255, 255, 255, 0.05);
+            display: flex; flex-direction: column;
+            border: 8px solid #18181b;
+            clip-path: inset(0 0 0 0 round 32px);
+            -webkit-clip-path: inset(0 0 0 0 round 32px);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        .phone-frame.light-theme { border-color: #d4d4d8; }
+
+        @media (min-width: 501px) and (max-height: 880px) {
+            .phone-frame { transform: scale(calc(100vh / 900)); transform-origin: center center; }
+        }
+
+        @media (max-width: 500px) {
+            body { background: var(--phone-bg); display: block; overflow: auto; transition: background 0.3s; }
+            .phone-frame {
+                width: 100vw; height: 100dvh; min-height: 100vh;
+                border-radius: 0; border: none; box-shadow: none;
+                transform: none; clip-path: none; -webkit-clip-path: none;
+            }
+            .header { padding-top: max(45px, env(safe-area-inset-top)) !important; }
+            .bottom-nav { 
+                padding-bottom: max(15px, env(safe-area-inset-bottom)) !important; 
+                border-radius: 0 !important;
+            }
+            .full-room-wrapper { border-radius: 0 !important; }
+        }
+
+        /* =========================================
+           Tabs, Header & Common Structures
+           ========================================= */
+        .view-container {
+            display: none; flex-direction: column; height: 100%; width: 100%;
+            position: absolute; top: 0; left: 0;
+        }
+        .view-container.active { display: flex; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .header { 
+            padding: 45px 24px 10px 24px; 
+            display: flex; justify-content: space-between; align-items: flex-end;
+            flex-shrink: 0; z-index: 10;
+        }
+        .header h1 { font-size: 26px; font-weight: 700; color: var(--text-color); margin-top: 4px; letter-spacing: -0.5px; transition: color 0.3s;}
+        .header .status { display: flex; gap: 12px; align-items: center;}
+        
+        .mode-badge {
+            padding: 4px 10px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); 
+            color: var(--accent-blue); font-size: 11px; font-weight: 700; border: 1px solid rgba(56, 189, 248, 0.3);
+            transition: all 0.3s ease;
+        }
+        .mode-badge.away { background: rgba(161, 161, 170, 0.15); color: #a1a1aa; border-color: rgba(161, 161, 170, 0.3); }
+
+        .theme-toggle {
+            width: 32px; height: 32px; border-radius: 50%;
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; cursor: pointer; transition: all 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .theme-toggle:active { transform: scale(0.9); }
+
+        .scroll-content {
+            padding: 0 24px 110px 24px; /* Padding for bottom nav */
+            overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;
+        }
+        .scroll-content::-webkit-scrollbar { display: none; }
+
+        /* =========================================
+           CSS 3D CUBE ENGINE
+           ========================================= */
+        .room-3d {
+            position: relative; width: 200px; height: 200px; 
+            transform-style: preserve-3d; -webkit-transform-style: preserve-3d;
+            transform: rotateX(var(--rot-x)) rotateZ(var(--rot-z)) translateZ(var(--pos-z, -30px));
+            transition: transform 0.1s linear;
+        }
+
+        .cube {
+            position: absolute; transform-style: preserve-3d; -webkit-transform-style: preserve-3d;
+            width: var(--w); height: var(--h); transform: translate3d(var(--x), var(--y), var(--z));
+        }
+
+        .face { position: absolute; background-color: var(--color); border: 1px solid rgba(0,0,0,0.15); }
+        .face-top    { top: 0; left: 0; width: var(--w); height: var(--h); transform: translateZ(var(--d)); filter: brightness(1.15); }
+        .face-bottom { top: 0; left: 0; width: var(--w); height: var(--h); transform: translateZ(0); filter: brightness(0.3); }
+        .face-front  { bottom: 0; left: 0; width: var(--w); height: var(--d); transform-origin: bottom; transform: rotateX(-90deg); filter: brightness(0.9); }
+        .face-back   { top: 0; left: 0; width: var(--w); height: var(--d); transform-origin: top; transform: rotateX(90deg); filter: brightness(0.5); }
+        .face-left   { top: 0; left: 0; width: var(--d); height: var(--h); transform-origin: left; transform: rotateY(-90deg); filter: brightness(0.7); }
+        .face-right  { top: 0; right: 0; width: var(--d); height: var(--h); transform-origin: right; transform: rotateY(90deg); filter: brightness(0.85); }
+
+        .interactive { cursor: pointer; }
+        .interactive .face { transition: all 0.4s ease; }
+        .interactive::after { content: ''; position: absolute; width: calc(var(--w) + 40px); height: calc(var(--h) + 40px); left: -20px; top: -20px; transform: translateZ(calc(var(--d) / 2)); background: rgba(0,0,0,0); }
+        
+        .active-mainlight .device-mainlight { --color: #fef08a !important; }
+        .active-mainlight .device-mainlight .face { border-color: transparent; }
+        .active-mainlight .device-mainlight .face-top, .active-mainlight .device-mainlight .face-bottom { box-shadow: 0 0 50px 20px rgba(253, 224, 71, 0.5); background-color: #fff; filter: brightness(1.8); }
+        .active-light .device-light { --color: #fde047 !important; }
+        .active-light .device-light .face-top { box-shadow: 0 0 30px 10px rgba(253, 224, 71, 0.6); background-color: #fff; filter: brightness(1.5); }
+        .active-tv .device-tv { --color: #e0f2fe !important; }
+        .active-tv .device-tv .face-front, .active-tv .device-tv .face-top { background-color: #bae6fd; filter: brightness(1.5); box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
+        .active-fridge .device-fridge .face { border-color: rgba(56, 189, 248, 0.5); box-shadow: inset 0 0 20px rgba(56, 189, 248, 0.2); }
+        .active-fridge .device-fridge .face-top, .active-fridge .device-fridge .face-left, .active-fridge .device-fridge .face-front { background-color: #bae6fd; filter: brightness(1.3); }
+        .active-ac .device-ac { --color: var(--accent-blue) !important; }
+        .active-ac .device-ac .face { border-color: rgba(255,255,255,0.2); }
+        .active-ac .device-ac .face-front, .active-ac .device-ac .face-top { box-shadow: 0 0 20px rgba(10,132,255,0.6); }
+        .active-stove .device-stove { --color: var(--accent-red) !important; }
+        .active-stove .device-stove .face-top { background-color: var(--accent-red); box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); animation: firePulse 0.6s infinite alternate; }
+        @keyframes firePulse { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+
+        .room-label {
+            position: absolute; color: var(--label-color); font-size: 11px; font-weight: 800;
+            transform: translateZ(80px) rotateZ(calc(var(--rot-z) * -1)) rotateX(calc(var(--rot-x) * -1));
+            text-shadow: var(--label-shadow); pointer-events: none; letter-spacing: 2px;
+            transition: transform 0.1s linear, color 0.3s, text-shadow 0.3s;
+        }
+
+        /* =========================================
+           View 1: Dashboard (Home)
+           ========================================= */
+        .mini-room-wrapper {
+            margin: 5px 24px 8px 24px; height: 200px; background: var(--room-bg-mini); border-radius: 28px; 
+            clip-path: inset(0 0 0 0 round 28px); -webkit-clip-path: inset(0 0 0 0 round 28px);
+            perspective: 1000px; -webkit-perspective: 1000px;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.2); 
+            border: 1px solid rgba(255,255,255,0.05); flex-shrink: 0;
+        }
+
+        #room-mini {
+            --rot-x: 55deg; --rot-z: 45deg; --pos-z: -10px; margin-top: 30px; 
+            transform: scale(0.7) rotateX(var(--rot-x)) rotateZ(var(--rot-z)) translateZ(var(--pos-z));
+            pointer-events: none;
+        }
+
+        .mode-banner-container { padding: 0 24px; margin-bottom: 10px; flex-shrink: 0; z-index: 5; }
+        .mode-card-normal { background-color: var(--banner-bg-normal) !important; border: 1px dashed var(--banner-border-normal) !important; }
+        .mode-card-away { background-color: var(--banner-bg-away) !important; border: 1px dashed var(--banner-border-away) !important; }
+
+        .controls-grid {
+            padding: 0 24px; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 82px; gap: 10px; 
+            overflow-y: hidden; padding-bottom: 90px; flex: 1; align-content: start;
+        }
+        .controls-grid::-webkit-scrollbar { display: none; }
+
+        .card {
+            background-color: var(--card-bg); border-radius: 18px; padding: 12px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer;
+            border: 1px solid var(--card-border); box-shadow: var(--card-shadow);
+        }
+        .card:active { transform: scale(0.96); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .card-icon { width: 32px; height: 32px; border-radius: 50%; background-color: rgba(120,120,120,0.1); display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.3s ease; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background-color: #a1a1aa; margin-top: 4px; transition: all 0.3s;}
+
+        .card-info h3 { font-size: 13px; font-weight: 600; margin-bottom: 2px; color: var(--text-color); transition: color 0.3s;}
+        .card-info p { font-size: 10px; color: var(--text-muted); font-weight: 500; transition: color 0.3s;}
+
+        .card.on { background-color: var(--active-bg); border-color: transparent; box-shadow: 0 8px 20px rgba(0,0,0,0.15);}
+        .card.on h3 { color: #09090b; }
+        .card.on p { color: #52525b; }
+        .card.on .status-dot { box-shadow: 0 0 8px currentColor; }
+        
+        .card.on.mainlight-card .card-icon { background-color: var(--accent-yellow); color: #000; }
+        .card.on.mainlight-card .status-dot { background-color: var(--accent-yellow); }
+        .card.on.light-card .card-icon { background-color: #fef08a; color: #000; }
+        .card.on.light-card .status-dot { background-color: #fef08a; }
+        .card.on.tv-card .card-icon { background-color: var(--accent-cyan); color: #000; }
+        .card.on.tv-card .status-dot { background-color: var(--accent-cyan); }
+        .card.on.fridge-card .card-icon { background-color: #e0f2fe; color: #000; }
+        .card.on.fridge-card .status-dot { background-color: #0ea5e9; }
+        .card.on.ac-card .card-icon { background-color: var(--accent-blue); color: #fff; }
+        .card.on.ac-card .status-dot { background-color: var(--accent-blue); }
+        .card.on.stove-card .card-icon { background-color: var(--accent-red); color: #fff; }
+        .card.on.stove-card .status-dot { background-color: var(--accent-red); }
+
+        /* =========================================
+           View: Alerts
+           ========================================= */
+        .alert-card {
+            background: var(--card-bg); border-radius: 18px; padding: 16px;
+            border: 1px solid var(--card-border); box-shadow: var(--card-shadow);
+            display: flex; flex-direction: column; gap: 8px; transition: all 0.3s;
+        }
+        .alert-card.high-risk { border-left: 4px solid var(--accent-red); }
+        .alert-card.med-risk { border-left: 4px solid var(--accent-yellow); }
+        .alert-card.low-risk { border-left: 4px solid var(--accent-blue); }
+        .alert-header-row { display: flex; justify-content: space-between; font-size: 11px; }
+        .risk-badge { font-weight: 700; }
+        .high-risk .risk-badge { color: var(--accent-red); }
+        .med-risk .risk-badge { color: var(--accent-yellow); }
+        .low-risk .risk-badge { color: var(--accent-blue); }
+        .alert-card h3 { color: var(--text-color); font-size: 15px; margin-top: 2px; }
+        .alert-card p { color: var(--text-muted); font-size: 12px; line-height: 1.4; margin-bottom: 5px; }
+        .btn-row { display: flex; gap: 8px; margin-top: 5px; }
+        .btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background: var(--accent-red); color: #fff; }
+        .btn-primary-yellow { background: var(--accent-yellow); color: #000; }
+        .btn-primary-blue { background: var(--accent-blue); color: #000; }
+        .btn-secondary { background: rgba(255,255,255,0.05); color: var(--text-color); border: 1px solid var(--card-border); }
+        .light-theme .btn-secondary { background: rgba(0,0,0,0.05); }
+
+        /* Alerts Summary Pills */
+        .alert-summary-container { display: flex; gap: 8px; margin-bottom: 12px; }
+        .summary-pill { flex: 1; padding: 10px 0; border-radius: 12px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--card-border); }
+        .summary-pill.high { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3);}
+        .summary-pill.med { color: var(--accent-yellow); background: rgba(253, 224, 71, 0.1); border-color: rgba(253, 224, 71, 0.3);}
+        .summary-pill.low { color: var(--accent-blue); background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.3);}
+        .summary-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .high .summary-dot { background: var(--accent-red); }
+        .med .summary-dot { background: var(--accent-yellow); }
+        .low .summary-dot { background: var(--accent-blue); }
+
+        /* [新增] 浅色模式下：中等风险（黄色）元素的对比度优化，改为深琥珀色 */
+        .light-theme .summary-pill.med { color: #d97706; background: rgba(217, 119, 6, 0.12); border-color: rgba(217, 119, 6, 0.3); }
+        .light-theme .med .summary-dot { background: #d97706; }
+        .light-theme .med-risk .risk-badge { color: #d97706; }
+        .light-theme .alert-card.med-risk { border-left-color: #d97706; }
+        .light-theme .status-val.warning { color: #d97706; }
+        .light-theme .btn-primary-yellow { background: #d97706; color: #ffffff; }
+
+        /* =========================================
+           View: Insights
+           ========================================= */
+        .system-status-card { background: var(--card-bg); border-radius: 16px; padding: 16px; border: 1px solid var(--card-border); box-shadow: var(--card-shadow); margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .status-row { display: flex; align-items: center; gap: 12px; }
+        .status-icon-box { width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .light-theme .status-icon-box { background: rgba(0,0,0,0.05); }
+        .status-info { flex: 1; }
+        .status-label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+        .status-val { font-size: 13px; font-weight: 600; color: var(--text-color); }
+        .status-val.warning { color: var(--accent-yellow); }
+        .status-val.good { color: var(--voice-btn); }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .stat-box { background: var(--card-bg); border-radius: 16px; padding: 16px; border: 1px solid var(--card-border); box-shadow: var(--card-shadow);}
+        .stat-box h4 { color: var(--text-muted); font-size: 11px; font-weight: 600; margin-bottom: 5px; }
+        .stat-box .val { color: var(--text-color); font-size: 24px; font-weight: 800; }
+        .stat-box .val span { font-size: 12px; color: var(--text-muted); }
+        
+        .list-item { display: flex; align-items: center; gap: 15px; background: var(--card-bg); padding: 12px 16px; border-radius: 16px; border: 1px solid var(--card-border); box-shadow: var(--card-shadow);}
+        .list-item .icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .list-item h4 { color: var(--text-color); font-size: 14px; margin-bottom: 2px; }
+        .list-item p { color: var(--text-muted); font-size: 11px; }
+
+        .recommendation-card { background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(34, 211, 238, 0.05) 100%); border: 1px dashed var(--accent-blue); border-radius: 18px; padding: 16px; display: flex; gap: 15px; margin-top: 5px; }
+        .recommendation-card .rec-icon { font-size: 24px; }
+        .recommendation-card h4 { color: var(--accent-blue); font-size: 14px; margin-bottom: 4px; }
+        .recommendation-card p { color: var(--text-color); opacity: 0.8; font-size: 11px; line-height: 1.4; margin-bottom: 12px; }
+        .btn-accent { background: var(--accent-blue); color: #fff; width: 100%; padding: 10px; border-radius: 10px; font-weight: 700; border: none; cursor: pointer;}
+
+        /* =========================================
+           View: Modes
+           ========================================= */
+        .mode-item { display: flex; align-items: center; gap: 15px; background: var(--card-bg); padding: 16px; border-radius: 16px; border: 1px solid var(--card-border); cursor: pointer; transition: 0.3s; box-shadow: var(--card-shadow);}
+        .mode-item .icon { font-size: 24px; width: 40px; text-align: center; }
+        .mode-item .info { flex: 1; }
+        .mode-item h4 { color: var(--text-color); font-size: 15px; margin-bottom: 2px; transition: 0.3s; }
+        .mode-item p { color: var(--text-muted); font-size: 11px; line-height: 1.3; }
+        .toggle-switch { width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 12px; position: relative; transition: 0.3s; flex-shrink:0; }
+        .light-theme .toggle-switch { background: rgba(0,0,0,0.1); }
+        .toggle-switch::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 3px; left: 3px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+        
+        .mode-item.active-mode { border-color: var(--accent-blue); background: rgba(56, 189, 248, 0.05); }
+        .mode-item.active-mode h4 { color: var(--accent-blue); }
+        .mode-item.active-mode .toggle-switch { background: var(--voice-btn); }
+        .mode-item.active-mode .toggle-switch::after { transform: translateX(20px); }
+
+        /* =========================================
+           View: Support
+           ========================================= */
+        .sos-container { text-align: center; margin: 10px 0 20px 0; }
+        .sos-btn { width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; margin: 0 auto 12px auto; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); border: 4px solid var(--phone-bg); animation: pulseSOS 2s infinite; cursor: pointer; transition: 0.2s;}
+        .sos-btn:active { transform: scale(0.9); }
+        @keyframes pulseSOS { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); } 70% { box-shadow: 0 0 0 25px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .sos-container p { color: var(--text-muted); font-size: 12px; }
+        
+        .support-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .support-grid .card { align-items: center; text-align: center; padding: 20px 10px; }
+        .support-grid .icon { font-size: 28px; margin-bottom: 10px; }
+        .support-grid h4 { font-size: 13px; color: var(--text-color); margin-bottom: 4px;}
+        .support-grid p { font-size: 10px; color: var(--text-muted); }
+
+        /* =========================================
+           View 2: Full Interactive 3D Room
+           ========================================= */
+        .full-room-wrapper {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            perspective: 1200px; -webkit-perspective: 1200px;
+            overflow: hidden; position: relative; background: var(--room-bg-full); 
+            border-bottom-left-radius: 32px; border-bottom-right-radius: 32px;
+        }
+
+        .drag-hint {
+            position: absolute; top: 120px; left: 0; right: 0; text-align: center;
+            color: var(--hint-color); font-size: 13px; pointer-events: none;
+            display: flex; flex-direction: column; gap: 5px; font-weight: 700; letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        #room-full { --rot-x: 55deg; --rot-z: 45deg; --pos-z: -30px; }
+
+        /* =========================================
+           Bottom Navigation & Voice Button
+           ========================================= */
+        .bottom-nav {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 85px;
+            background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--card-border);
+            border-bottom-left-radius: 32px; border-bottom-right-radius: 32px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 10px; padding-bottom: 15px; z-index: 1000; transition: background 0.3s;
+        }
+
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: var(--text-muted); cursor: pointer; transition: color 0.3s; 
+            flex: 1; /* evenly divide space */
+        }
+        .nav-item.active { color: var(--text-color); }
+        .nav-icon { font-size: 19px; }
+        .nav-label { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0px;}
+
+        .voice-btn-wrapper {
+            position: absolute; left: 50%; bottom: 35px; transform: translateX(-50%);
+            z-index: 1001; display: flex; justify-content: center; align-items: center;
+        }
+
+        .voice-btn-circle {
+            width: 66px; height: 66px; border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+            display: flex; justify-content: center; align-items: center;
+            font-size: 28px; color: #fff; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s; border: 4px solid var(--phone-bg); 
+        }
+
+        .voice-btn-circle:active { transform: scale(0.92); }
+        .voice-btn-circle.listening { animation: ripple 1.5s infinite; background: var(--accent-red); box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);}
+
+        @keyframes ripple { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+        .toast {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            background: rgba(39, 39, 42, 0.95); backdrop-filter: blur(10px);
+            padding: 12px 24px; border-radius: 30px; color: #fff; font-size: 13px; font-weight: 600;
+            opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; white-space: nowrap;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 9999; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.error { background: rgba(127, 29, 29, 0.95); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5; }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        
+        <!-- ==========================================
+             1. DASHBOARD (HOME)
+             ========================================== -->
+        <div id="view-home" class="view-container active">
+            <div class="header">
+                <div>
+                    <div id="greeting-text" style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px; transition: color 0.3s;">Good Morning</div>
+                    <h1>SmartSphere</h1>
+                </div>
+                <div class="status">
+                    <div class="mode-badge" id="mode-badge">🏠 Normal Mode</div>
+                    <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+                </div>
+            </div>
+
+            <div class="mini-room-wrapper">
+                <div class="room-3d" id="room-mini"></div>
+            </div>
+
+            <div class="mode-banner-container">
+                <div class="card mode-card-normal" id="mode-toggle-card" onclick="toggleUserMode()" style="flex-direction: row; align-items: center; height: 65px; padding: 0 20px;">
+                    <div class="card-info" style="display: flex; align-items: center; gap: 15px;">
+                        <span style="font-size: 24px;" id="mode-card-icon">🚶</span>
+                        <div>
+                            <h3 style="color: var(--accent-blue); font-size: 15px; margin-bottom: 2px;" id="mode-card-title">Enable Away Mode</h3>
+                            <p style="color: var(--text-muted); font-size: 11px; margin: 0;" id="mode-card-desc">Auto-turns off appliances</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-grid">
+                <div class="card mainlight-card" onclick="toggleAppliance('mainlight')">
+                    <div class="card-header"><div class="card-icon">💡</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Main Light</h3><p id="status-mainlight">OFF</p></div>
+                </div>
+                <div class="card tv-card" onclick="toggleAppliance('tv')">
+                    <div class="card-header"><div class="card-icon">📺</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Smart TV</h3><p id="status-tv">OFF</p></div>
+                </div>
+                <div class="card fridge-card" onclick="toggleAppliance('fridge')">
+                    <div class="card-header"><div class="card-icon">🧊</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Refrigerator</h3><p id="status-fridge">OFF</p></div>
+                </div>
+                <div class="card ac-card" onclick="toggleAppliance('ac')">
+                    <div class="card-header"><div class="card-icon">❄️</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Air Cond</h3><p id="status-ac">OFF</p></div>
+                </div>
+                <div class="card light-card" onclick="toggleAppliance('light')">
+                    <div class="card-header"><div class="card-icon">🛋️</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Floor Light</h3><p id="status-light">OFF</p></div>
+                </div>
+                <div class="card stove-card" onclick="toggleAppliance('stove')">
+                    <div class="card-header"><div class="card-icon">🍳</div><div class="status-dot"></div></div>
+                    <div class="card-info"><h3>Kitchen Stove</h3><p id="status-stove">OFF</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             2. ALERTS (NEW)
+             ========================================== -->
+        <div id="view-alerts" class="view-container">
+            <div class="header">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px;">Safety Monitoring</div>
+                    <h1>Alerts</h1>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+            </div>
+            <div class="scroll-content">
+                
+                <div class="alert-summary-container">
+                    <div class="summary-pill high"><div class="summary-dot"></div>1 High</div>
+                    <div class="summary-pill med"><div class="summary-dot"></div>1 Medium</div>
+                    <div class="summary-pill low"><div class="summary-dot"></div>1 Low</div>
+                </div>
+
+                <div class="alert-card high-risk">
+                    <div class="alert-header-row">
+                        <span class="risk-badge">🚨 High Risk</span><span style="color:var(--text-muted)">Just now</span>
+                    </div>
+                    <h3>Stove left on</h3>
+                    <p>Appliance active for 45 mins unattended. Fire hazard detected.</p>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="resolveAlert(this, 'Turned off Stove')">Turn off now</button>
+                        <button class="btn btn-secondary" onclick="resolveAlert(this, 'Alert Dismissed')">Dismiss</button>
+                    </div>
+                </div>
+
+                <div class="alert-card med-risk">
+                    <div class="alert-header-row">
+                        <span class="risk-badge">⚠️ Medium Risk</span><span style="color:var(--text-muted)">12 mins ago</span>
+                    </div>
+                    <h3>Device running in Away Mode</h3>
+                    <p>Air Cond is consuming power while no one is home.</p>
+                    <div class="btn-row">
+                        <button class="btn btn-primary-yellow" onclick="resolveAlert(this, 'Turned off AC')">Turn off AC</button>
+                        <button class="btn btn-secondary" onclick="resolveAlert(this, 'Switched to Normal Mode')">Disable Away</button>
+                    </div>
+                </div>
+
+                <div class="alert-card low-risk">
+                    <div class="alert-header-row">
+                        <span class="risk-badge">ℹ️ Low Risk</span><span style="color:var(--text-muted)">2 hrs ago</span>
+                    </div>
+                    <h3>Appliance active too long</h3>
+                    <p>Smart TV has been running continuously for 6 hours.</p>
+                    <div class="btn-row">
+                        <button class="btn btn-primary-blue" onclick="resolveAlert(this, 'Acknowledged')">Acknowledge</button>
+                        <button class="btn btn-secondary" onclick="resolveAlert(this, 'Alert Dismissed')">Dismiss</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================================
+             3. INSIGHTS (NEW)
+             ========================================== -->
+        <div id="view-insights" class="view-container">
+            <div class="header">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px;">Usage Insights</div>
+                    <h1>Insights</h1>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+            </div>
+            <div class="scroll-content">
+                
+                <div class="system-status-card">
+                    <div class="status-row">
+                        <div class="status-icon-box">🛡️</div>
+                        <div class="status-info">
+                            <div class="status-label">Safety Status</div>
+                            <div class="status-val good">No critical issue</div>
+                        </div>
+                    </div>
+                    <div class="status-row">
+                        <div class="status-icon-box">⚡</div>
+                        <div class="status-info">
+                            <div class="status-label">Energy Status</div>
+                            <div class="status-val warning">Higher than weekly average</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <h4>Today's Usage</h4>
+                        <div class="val">12.4 <span>kWh</span></div>
+                    </div>
+                    <div class="stat-box">
+                        <h4>Weekly Avg</h4>
+                        <div class="val">10.2 <span>kWh</span></div>
+                    </div>
+                    <!-- Weekly Bar Chart -->
+                    <div class="stat-box" style="grid-column: span 2;">
+                        <h4>Weekly Summary (kWh)</h4>
+                        <div style="display: flex; align-items: flex-end; gap: 8px; height: 60px; margin-top: 10px;">
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.5; height: 40%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.7; height: 60%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.4; height: 30%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.8; height: 70%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.6; height: 50%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-red); opacity: 1; height: 90%; border-radius: 4px;"></div>
+                            <div style="flex: 1; background: var(--accent-blue); opacity: 0.5; height: 40%; border-radius: 4px;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-muted); margin-top: 5px; font-weight: 700;">
+                            <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="list-item">
+                    <div class="icon" style="background: rgba(56, 189, 248, 0.1); color: var(--accent-blue)">❄️</div>
+                    <div>
+                        <h4>Most active appliance</h4>
+                        <p>Air Cond (8 hrs running today)</p>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="icon" style="background: rgba(34, 211, 238, 0.1); color: var(--accent-cyan)">🧊</div>
+                    <div>
+                        <h4>Long-running appliance</h4>
+                        <p>Refrigerator (24 hrs continuous)</p>
+                    </div>
+                </div>
+
+                <div class="recommendation-card">
+                    <div class="rec-icon">💡</div>
+                    <div>
+                        <h4>Smart Recommendation</h4>
+                        <p>Air cond has been active for long hours. Enable energy-saving mode to optimize usage and reduce cost.</p>
+                        <button class="btn-accent" onclick="showToast('Energy-Saving Mode Enabled')">Enable Energy-Saving</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================================
+             4. MODES (NEW)
+             ========================================== -->
+        <div id="view-modes" class="view-container">
+            <div class="header">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px;">Home Automation</div>
+                    <h1>Modes</h1>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+            </div>
+            <div class="scroll-content">
+                
+                <div class="mode-item active-mode" onclick="selectModeUI(this)">
+                    <div class="icon">🏠</div>
+                    <div class="info">
+                        <h4>Normal Mode</h4>
+                        <p>Standard automated appliance operation.</p>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+
+                <div class="mode-item" onclick="selectModeUI(this)">
+                    <div class="icon">🏃</div>
+                    <div class="info">
+                        <h4>Away Mode</h4>
+                        <p>Auto-turns off non-essential devices.</p>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+
+                <div class="mode-item" onclick="selectModeUI(this)">
+                    <div class="icon">🌙</div>
+                    <div class="info">
+                        <h4>Night Mode</h4>
+                        <p>Dims lights, locks stove, reduces risk at night.</p>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+
+                <div class="mode-item" onclick="selectModeUI(this)">
+                    <div class="icon">🍃</div>
+                    <div class="info">
+                        <h4>Energy Saving</h4>
+                        <p>Optimizes high-drain appliance use automatically.</p>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+
+                <div class="mode-item" onclick="selectModeUI(this)" style="border-left: 3px solid var(--accent-red);">
+                    <div class="icon">🚨</div>
+                    <div class="info">
+                        <h4>Emergency Mode</h4>
+                        <p>Prioritize alerts and unlocks fast actions.</p>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================================
+             5. CARE / SUPPORT (NEW)
+             ========================================== -->
+        <div id="view-support" class="view-container">
+            <div class="header">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px;">Care Assistance</div>
+                    <h1>Support</h1>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+            </div>
+            <div class="scroll-content">
+                
+                <div class="sos-container">
+                    <div class="sos-btn" onclick="showToast('🚨 SOS Activated! Contacting Family...', true)">SOS</div>
+                    <p>Tap for Emergency Request</p>
+                </div>
+
+                <div class="support-grid">
+                    <div class="card" onclick="showToast('Calling Emergency Contact...')">
+                        <div class="icon">📞</div>
+                        <h4>Call Emergency</h4>
+                        <p>Call 911 / Ambulance</p>
+                    </div>
+                    <div class="card" onclick="showToast('Notification sent to Family.')">
+                        <div class="icon">👨‍👩‍👧</div>
+                        <h4>Notify Family</h4>
+                        <p>Send quick alert message</p>
+                    </div>
+                    <div class="card" onclick="showToast('Connecting to Caregiver...')">
+                        <div class="icon">👩‍⚕️</div>
+                        <h4>Caregiver Help</h4>
+                        <p>Request daily assistance</p>
+                    </div>
+                    <div class="card" onclick="showToast('Opening Safety Guidelines...')">
+                        <div class="icon">📖</div>
+                        <h4>Safety Guidance</h4>
+                        <p>Read appliance guidance</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==========================================
+             6. 3D VIEW (ORIGINAL)
+             ========================================== -->
+        <div id="view-3d" class="view-container">
+            <div class="header">
+                <div>
+                    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 2px; transition: color 0.3s;">Interactive</div>
+                    <h1>3D Space</h1>
+                </div>
+                <div class="status">
+                    <div class="theme-toggle" onclick="toggleTheme()">☀️</div>
+                </div>
+            </div>
+            
+            <div class="full-room-wrapper" id="room-touch-area">
+                <div class="drag-hint">
+                    <span>👆 Drag to rotate</span>
+                    <span>🎯 Tap appliance to control</span>
+                </div>
+                <div class="room-3d" id="room-full"></div>
+            </div>
+        </div>
+
+        <!-- ==========================================
+             BOTTOM NAVIGATION (UPDATED 6 TABS)
+             ========================================== -->
+        <div class="bottom-nav">
+            <!-- Left Side (3 items) -->
+            <div class="nav-item active" id="nav-home" onclick="switchTab('home')">
+                <div class="nav-icon">🏠</div><div class="nav-label">Home</div>
+            </div>
+            <div class="nav-item" id="nav-alerts" onclick="switchTab('alerts')">
+                <div class="nav-icon" style="color: var(--accent-red);">⚠️</div><div class="nav-label">Alerts</div>
+            </div>
+            <div class="nav-item" id="nav-insights" onclick="switchTab('insights')">
+                <div class="nav-icon">📊</div><div class="nav-label">Insights</div>
+            </div>
+            
+            <!-- Center Space for Voice Button -->
+            <div style="width: 70px; flex-shrink: 0;"></div>
+            
+            <!-- Right Side (3 items) -->
+            <div class="nav-item" id="nav-modes" onclick="switchTab('modes')">
+                <div class="nav-icon">🎛️</div><div class="nav-label">Modes</div>
+            </div>
+            <div class="nav-item" id="nav-support" onclick="switchTab('support')">
+                <div class="nav-icon" style="color: var(--voice-btn);">❤️</div><div class="nav-label">Care</div>
+            </div>
+            <div class="nav-item" id="nav-3d" onclick="switchTab('3d')">
+                <div class="nav-icon">👁️‍🗨️</div><div class="nav-label">3D View</div>
+            </div>
+        </div>
+
+        <div class="voice-btn-wrapper">
+            <div class="voice-btn-circle" id="voice-btn" onclick="activateVoice()">🎙️</div>
+        </div>
+
+        <div class="toast" id="feedback-toast">Listening...</div>
+    </div>
+
+    <script>
+        const roomArchitectureHTML = `
+            <!-- Room Structure -->
+            <div class="cube" style="--w: 200px; --h: 200px; --d: 12px; --x: 0px; --y: 0px; --z: -12px; --color: #52525b;"></div>
+            <div class="cube" style="--w: 10px; --h: 200px; --d: 110px; --x: -10px; --y: 0px; --z: -12px; --color: #52525b;"></div>
+            <div class="cube" style="--w: 200px; --h: 10px; --d: 110px; --x: 0px; --y: -10px; --z: -12px; --color: #52525b;"></div>
+
+            <!-- Living Room -->
+            <div class="cube" style="--w: 80px; --h: 60px; --d: 2px; --x: 10px; --y: 110px; --z: 0px; --color: #3f3f46;"></div>
+            <div class="cube" style="--w: 60px; --h: 30px; --d: 15px; --x: 20px; --y: 120px; --z: 2px; --color: #0369a1;"></div>
+            <div class="cube" style="--w: 60px; --h: 10px; --d: 30px; --x: 20px; --y: 150px; --z: 2px; --color: #075985;"></div>
+            <div class="cube" style="--w: 10px; --h: 40px; --d: 20px; --x: 10px; --y: 120px; --z: 2px; --color: #075985;"></div>
+            <div class="cube" style="--w: 10px; --h: 40px; --d: 20px; --x: 80px; --y: 120px; --z: 2px; --color: #075985;"></div>
+            <div class="cube" style="--w: 30px; --h: 20px; --d: 2px; --x: 35px; --y: 80px; --z: 10px; --color: #451a03;"></div>
+            <div class="cube" style="--w: 20px; --h: 10px; --d: 10px; --x: 40px; --y: 85px; --z: 0px; --color: #1c1917;"></div>
+            <div class="cube" style="--w: 60px; --h: 15px; --d: 12px; --x: 20px; --y: 20px; --z: 0px; --color: #1e293b;"></div>
+
+            <!-- Kitchen -->
+            <div class="cube" style="--w: 70px; --h: 40px; --d: 35px; --x: 120px; --y: 0px; --z: 0px; --color: #52525b;"></div>
+            <div class="cube" style="--w: 40px; --h: 30px; --d: 3px; --x: 130px; --y: 120px; --z: 25px; --color: #451a03;"></div>
+            <div class="cube" style="--w: 15px; --h: 10px; --d: 25px; --x: 142px; --y: 130px; --z: 0px; --color: #27272a;"></div>
+
+            <!-- Appliances -->
+            <div class="cube device-mainlight interactive" data-device="mainlight" style="--w: 20px; --h: 20px; --d: 4px; --x: 40px; --y: 90px; --z: 95px; --color: #e2e8f0;"></div>
+            <div class="cube device-tv interactive" data-device="tv" style="--w: 40px; --h: 3px; --d: 25px; --x: 30px; --y: 25px; --z: 12px; --color: #020617;"></div>
+            <div class="cube device-fridge interactive" data-device="fridge" style="--w: 25px; --h: 25px; --d: 70px; --x: 165px; --y: 50px; --z: 0px; --color: #94a3b8;"></div>
+            <div class="cube" style="--w: 4px; --h: 4px; --d: 40px; --x: 80px; --y: 175px; --z: 0px; --color: #1e293b;"></div>
+            <div class="cube device-light interactive" data-device="light" style="--w: 16px; --h: 16px; --d: 15px; --x: 74px; --y: 169px; --z: 40px; --color: #f5f5f4;"></div>
+            <div class="cube device-ac interactive" data-device="ac" style="--w: 12px; --h: 40px; --d: 15px; --x: -5px; --y: 45px; --z: 75px; --color: #cbd5e1;"></div>
+            <div class="cube device-stove interactive" data-device="stove" style="--w: 30px; --h: 20px; --d: 3px; --x: 125px; --y: 10px; --z: 35px; --color: #09090b;"></div>
+        `;
+
+        const roomMini = document.getElementById('room-mini');
+        const roomFull = document.getElementById('room-full');
+        roomMini.innerHTML = roomArchitectureHTML;
+        roomFull.innerHTML = roomArchitectureHTML;
+
+        document.querySelectorAll('.cube').forEach(cube => {
+            ['top', 'bottom', 'front', 'back', 'left', 'right'].forEach(side => {
+                let face = document.createElement('div');
+                face.className = `face face-${side}`;
+                cube.appendChild(face);
+            });
+        });
+
+        /* =========================================================================
+           Theme Toggle Logic
+           ========================================================================= */
+        let isDarkMode = true;
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const phone = document.querySelector('.phone-frame');
+            const btns = document.querySelectorAll('.theme-toggle');
+            const greeting = document.getElementById('greeting-text');
+            
+            if (isDarkMode) {
+                phone.classList.remove('light-theme');
+                btns.forEach(btn => btn.innerText = '☀️');
+                if (greeting) greeting.innerText = 'Good Morning';
+            } else {
+                phone.classList.add('light-theme');
+                btns.forEach(btn => btn.innerText = '🌙');
+                if (greeting) greeting.innerText = 'Good Evening';
+            }
+        }
+
+        /* =========================================================================
+           UI Navigation & 3D Control
+           ========================================================================= */
+        function switchTab(tabId) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+        }
+
+        // New Logic: UI Mode Selection (Modes View)
+        function selectModeUI(element) {
+            document.querySelectorAll('.mode-item .toggle-switch').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.mode-item').forEach(el => el.classList.remove('active-mode'));
+            element.querySelector('.toggle-switch').classList.add('active');
+            element.classList.add('active-mode');
+            showToast(element.querySelector('h4').innerText + ' Activated');
+        }
+
+        // New Logic: Alert Dismissal (Alerts View)
+        function resolveAlert(btn, actionMessage) {
+            const card = btn.closest('.alert-card');
+            btn.innerText = "Resolved";
+            btn.style.background = "var(--voice-btn)";
+            btn.style.color = "#fff";
+            showToast(actionMessage);
+            setTimeout(() => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(10px)';
+                setTimeout(() => card.style.display = 'none', 300);
+            }, 600);
+        }
+
+        const touchArea = document.getElementById('room-touch-area');
+        let isDragging = false, previousX = 0, previousY = 0;
+        let rotX = 60, rotZ = 45;
+
+        touchArea.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', endDrag);
+        touchArea.addEventListener('touchstart', (e) => startDrag(e.touches[0]));
+        document.addEventListener('touchmove', (e) => { if(isDragging) drag(e.touches[0]); }, {passive: false});
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) { isDragging = true; previousX = e.clientX; previousY = e.clientY; }
+        function drag(e) {
+            if (!isDragging) return;
+            rotZ -= (e.clientX - previousX) * 0.5; 
+            rotX -= (e.clientY - previousY) * 0.5;
+            rotX = Math.max(25, Math.min(85, rotX)); 
+            roomFull.style.setProperty('--rot-x', `${rotX}deg`);
+            roomFull.style.setProperty('--rot-z', `${rotZ}deg`);
+            previousX = e.clientX; previousY = e.clientY;
+        }
+        function endDrag() { isDragging = false; }
+
+        document.addEventListener('click', (e) => {
+            const device = e.target.closest('.interactive');
+            if (device && document.getElementById('view-3d').classList.contains('active')) {
+                toggleAppliance(device.dataset.device);
+            }
+        });
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('feedback-toast');
+            toast.innerText = msg;
+            toast.className = 'toast show ' + (isError ? 'error' : '');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        /* =========================================================================
+           MOCK NODE.JS BACKEND
+           ========================================================================= */
+        let serverState = { mode: 'normal', light: false, mainlight: false, tv: false, fridge: true, ac: false, stove: false };
+        let stoveActiveTime = 0;
+        let pendingAlert = null;
+
+        setInterval(() => {
+            if (serverState.stove && serverState.mode === 'normal') {
+                stoveActiveTime++;
+                if (stoveActiveTime === 12) {
+                    pendingAlert = "Stove active for too long! Auto-disabled.";
+                    serverState.stove = false;
+                    stoveActiveTime = 0;
+                }
+            } else {
+                stoveActiveTime = 0;
+            }
+        }, 1000);
+
+        const mockResponse = (data, delay = 200) => new Promise(r => setTimeout(() => r({ ok: true, json: () => Promise.resolve(JSON.parse(JSON.stringify(data))) }), delay));
+        const mockError = () => new Promise((_, reject) => setTimeout(() => reject(new TypeError("Failed to fetch")), 200));
+
+        async function apiFetch(url, options) {
+            if (Math.random() < 0.15 && url !== '/api/alerts') {
+                return mockError();
+            }
+            if (url === '/api/state') return mockResponse(serverState);
+            if (url === '/api/alerts') {
+                const currentAlert = pendingAlert;
+                pendingAlert = null; 
+                return mockResponse({ alert: currentAlert, state: serverState }, 50);
+            }
+            if (url === '/api/mode' && options.method === 'POST') {
+                const { mode } = JSON.parse(options.body);
+                serverState.mode = mode;
+                if (mode === 'away') {
+                    serverState.tv = false; serverState.ac = false; serverState.light = false; serverState.mainlight = false;
+                    if (serverState.stove) {
+                        pendingAlert = "⚠️ CRITICAL: User left while stove active! Stove auto-disabled.";
+                        serverState.stove = false;
+                    }
+                }
+                return mockResponse({ success: true, state: serverState });
+            }
+            if (url === '/api/toggle') {
+                const body = JSON.parse(options.body);
+                if (body.id === 'stove' && serverState.mode === 'away' && !serverState.stove) {
+                    return mockResponse({ success: false, error: "Safety Lock: Cannot turn on stove in Away Mode." });
+                }
+                serverState[body.id] = !serverState[body.id];
+                return mockResponse({ success: true, state: serverState });
+            }
+            if (url === '/api/voice') {
+                serverState.mainlight = true;
+                return mockResponse({ success: true, command: "Turn on Main Light", state: serverState });
+            }
+            return window.fetch(url, options); 
+        }
+
+        /* =========================================================================
+           FRONTEND LOGIC
+           ========================================================================= */
+        let localState = { ...serverState };
+
+        async function fetchInitialState() {
+            try {
+                const res = await apiFetch('/api/state');
+                localState = await res.json();
+                Object.keys(localState).forEach(updateUI);
+                updateModeUI();
+                setInterval(pollAlerts, 2000);
+            } catch (err) { showToast("⚠️ Backend connection failed", true); }
+        }
+
+        async function pollAlerts() {
+            try {
+                const res = await apiFetch('/api/alerts');
+                const data = await res.json();
+                if (data.alert) {
+                    showToast(data.alert, true);
+                    localState = data.state;
+                    ['stove'].forEach(updateUI);
+                }
+            } catch(e) {}
+        }
+
+        async function toggleUserMode() {
+            const newMode = localState.mode === 'normal' ? 'away' : 'normal';
+            localState.mode = newMode;
+            updateModeUI();
+
+            try {
+                const res = await apiFetch('/api/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: newMode }) });
+                const data = await res.json();
+                if (data.success) {
+                    localState = data.state;
+                    ['tv', 'ac', 'light', 'mainlight', 'stove'].forEach(updateUI);
+                }
+            } catch (err) {
+                localState.mode = newMode === 'normal' ? 'away' : 'normal';
+                updateModeUI();
+                showToast("⚠️ Backend connection failed", true);
+            }
+        }
+
+        function updateModeUI() {
+            const badge = document.getElementById('mode-badge');
+            const cardTitle = document.getElementById('mode-card-title');
+            const cardDesc = document.getElementById('mode-card-desc');
+            const cardIcon = document.getElementById('mode-card-icon');
+            const card = document.getElementById('mode-toggle-card');
+
+            if (localState.mode === 'away') {
+                badge.className = 'mode-badge away'; badge.innerText = '🏃 Away Mode';
+                cardTitle.innerText = 'Return Home'; cardTitle.style.color = 'var(--text-muted)';
+                cardDesc.innerText = 'Switch to Normal Mode'; 
+                cardIcon.innerText = '🏠';
+                card.className = 'card mode-card-away';
+            } else {
+                badge.className = 'mode-badge'; badge.innerText = '🏠 Normal Mode';
+                cardTitle.innerText = 'Enable Away Mode'; cardTitle.style.color = 'var(--accent-blue)';
+                cardDesc.innerText = 'Auto-turns off appliances'; 
+                cardIcon.innerText = '🚶';
+                card.className = 'card mode-card-normal'; 
+            }
+        }
+
+        async function toggleAppliance(id) {
+            localState[id] = !localState[id];
+            updateUI(id);
+            try {
+                const res = await apiFetch('/api/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
+                const data = await res.json();
+                if (!data.success) {
+                    localState[id] = !localState[id]; updateUI(id);
+                    showToast("🔒 " + data.error, true);
+                } else {
+                    localState = data.state; updateUI(id); 
+                }
+            } catch (err) {
+                localState[id] = !localState[id]; updateUI(id); 
+                showToast("⚠️ Backend connection failed", true);
+            }
+        }
+
+        function updateUI(id) {
+            if(id === 'mode') return; 
+            const isOn = localState[id];
+            const card = document.querySelector(`.${id}-card`);
+            const statusText = document.getElementById(`status-${id}`);
+            if(card && statusText) {
+                isOn ? card.classList.add('on') : card.classList.remove('on');
+                statusText.innerText = isOn ? "ON" : "OFF";
+            }
+            if(isOn) {
+                roomMini.classList.add(`active-${id}`);
+                roomFull.classList.add(`active-${id}`);
+            } else {
+                roomMini.classList.remove(`active-${id}`);
+                roomFull.classList.remove(`active-${id}`);
+            }
+        }
+
+        async function activateVoice() {
+            const btn = document.getElementById('voice-btn');
+            if(btn.classList.contains('listening')) return;
+            btn.classList.add('listening');
+            showToast("Listening...");
+
+            setTimeout(async () => {
+                try {
+                    const res = await apiFetch('/api/voice', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast(`Command: ${data.command}`);
+                        localState = data.state; updateUI('mainlight'); 
+                    }
+                } catch (err) {
+                    showToast("⚠️ Voice server connection failed", true);
+                } finally {
+                    setTimeout(() => { btn.classList.remove('listening'); }, 1000);
+                }
+            }, 1000);
+        }
+
+        window.onload = fetchInitialState;
+    </script>
+</body>
+</html>
